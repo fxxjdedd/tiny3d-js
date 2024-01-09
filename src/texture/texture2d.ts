@@ -9,7 +9,6 @@ export enum TEXTURE_TYPE {
 
 export class Texture2D extends Texture {
     constructor(
-        public gl: WebGL2RenderingContext,
         w: Uint32,
         h: Uint32,
         useMip: boolean,

@@ -7,18 +7,17 @@ export class FrameBuffer {
     fboId: WebGLFramebuffer;
     colorBuffers: Texture[];
     depthBuffer: Texture | null;
-    private colorRefs: boolean[];
+    private colorRefs: boolean[] = [];
     private depthOnly: boolean;
     private depthRef: boolean;
     private readOnly: boolean;
     private wrapMode: Int32;
 
     private cubeBuffer: CubeMap | null = null;
-    constructor(gl: WebGLRenderingContext, cube: CubeMap);
-    constructor(gl: WebGLRenderingContext, width: Float32, height: Float32);
-    constructor(gl: WebGLRenderingContext, width: Float32, height: Float32, precision: Int32);
+    constructor(cube: CubeMap);
+    constructor(width: Float32, height: Float32);
+    constructor(width: Float32, height: Float32, precision: Int32);
     constructor(
-        gl: WebGLRenderingContext,
         width: Float32,
         height: Float32,
         precision: Int32,
@@ -27,7 +26,6 @@ export class FrameBuffer {
         filt: Int32
     );
     constructor(
-        public gl: WebGL2RenderingContext,
         public width: Float32 | CubeMap,
         public height?: Float32,
         precision?: Int32,
@@ -35,6 +33,7 @@ export class FrameBuffer {
         wrap?: Int32,
         filt?: Int32
     ) {
+        const gl = window.gl;
         this.fboId = gl.createFramebuffer()!;
         this.wrapMode = wrap!;
         this.colorBuffers = [];
@@ -42,7 +41,7 @@ export class FrameBuffer {
         this.depthBuffer = null;
 
         switch (arguments.length) {
-            case 1 + 1: {
+            case 1: {
                 const cubemap = width as CubeMap;
                 if (!cubemap.finished) {
                     throw new Error("Cubemap not loaded");
@@ -55,18 +54,18 @@ export class FrameBuffer {
                 this.height = this.cubeBuffer.height;
                 break;
             }
-            case 1 + 2:
+            case 2:
                 this.depthOnly = true;
                 this.depthRef = false;
                 this.readOnly = false;
                 break;
-            case 1 + 3:
+            case 3:
                 this.depthOnly = true;
                 this.depthRef = false;
                 this.readOnly = false;
                 this.attachDepthBuffer(precision!, false);
                 break;
-            case 1 + 6:
+            case 6:
                 this.depthOnly = false;
                 this.depthRef = false;
                 this.readOnly = false;
@@ -80,7 +79,6 @@ export class FrameBuffer {
         this.depthOnly = false;
         this.colorBuffers.push(
             new Texture2D(
-                this.gl,
                 this.width as number,
                 this.height!,
                 false,
