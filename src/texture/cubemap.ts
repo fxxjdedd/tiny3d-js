@@ -11,6 +11,7 @@ export class CubeMap extends AsyncResource<void> {
     width!: number;
     height!: number;
     useMip: boolean;
+    id!: WebGLTexture;
     constructor(
         xpos: string,
         xneg: string,
@@ -40,7 +41,7 @@ export class CubeMap extends AsyncResource<void> {
             this.znegImg.load(),
         ]);
         const gl = window.gl;
-        const id = gl.createTexture();
+        this.id = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, id);
 
         gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);

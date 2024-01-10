@@ -7,6 +7,11 @@ export enum TEXTURE_TYPE {
     ANIME,
 }
 
+export function getColorAttachment(i: number) {
+    const num = i < 10 ? "00" + i : "0" + i;
+    return "COLOR_ATTACHMENT" + num;
+}
+
 export class Texture2D extends Texture {
     constructor(
         w: Uint32,

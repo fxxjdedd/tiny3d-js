@@ -1,16 +1,17 @@
 import { Texture } from "./texture/texture";
 import { Float32, Int32 } from "./util/type";
 import { CubeMap } from "./texture/cubemap";
-import { TEXTURE_TYPE, Texture2D } from "./texture/texture2d";
+import { TEXTURE_TYPE, Texture2D, getColorAttachment } from "./texture/texture2d";
+import { NEAREST } from "./constants";
 
 export class FrameBuffer {
     fboId: WebGLFramebuffer;
     colorBuffers: Texture[];
     depthBuffer: Texture | null;
     private colorRefs: boolean[] = [];
-    private depthOnly: boolean;
-    private depthRef: boolean;
-    private readOnly: boolean;
+    private depthOnly!: boolean;
+    private depthRef!: boolean;
+    private readOnly!: boolean;
     private wrapMode: Int32;
 
     private cubeBuffer: CubeMap | null = null;
@@ -75,6 +76,43 @@ export class FrameBuffer {
         }
     }
 
+    attachDepthBuffer(precision: Int32, useMip: boolean) {
+        const gl = window.gl;
+        this.depthBuffer = new Texture2D(
+            this.width as number,
+            this.height!,
+            useMip,
+            TEXTURE_TYPE.DEPTH,
+            precision,
+            4,
+            gl.NEAREST,
+            gl.CLAMP_TO_EDGE, // webgl does not support CLAMP_TO_BORDER
+            true
+        );
+        // TODO: drawBuffer/readBuffer
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,
+            gl.DEPTH_ATTACHMENT,
+            gl.TEXTURE_2D,
+            this.depthBuffer.id,
+            0
+        );
+    }
+
+    setDepthBuffer(depthTex: Texture) {
+        this.depthBuffer = depthTex;
+        this.depthRef = true;
+        const gl = window.gl;
+        // TODO: drawBuffer/readBuffer
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,
+            gl.DEPTH_ATTACHMENT,
+            gl.TEXTURE_2D,
+            this.depthBuffer.id,
+            0
+        );
+    }
+
     addColorBuffer(precision: Int32, component: Int32, filt: Int32) {
         this.depthOnly = false;
         this.colorBuffers.push(
@@ -91,10 +129,72 @@ export class FrameBuffer {
         );
         this.colorRefs.push(false);
     }
-    attachDepthBuffer(precision: Int32, useMip: boolean) {}
-    addColorRef() {}
-    setDepthBuffer() {}
-    getColorBuffer(n: Int32) {}
-    getDepthBuffer() {}
-    use() {}
+
+    addColorRef(colorTex: Texture) {
+        this.depthOnly = false;
+        this.colorBuffers.push(colorTex);
+        this.colorRefs.push(true);
+        const gl = window.gl;
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,
+            (gl as any)[getColorAttachment(this.colorBuffers.length - 1)],
+            gl.TEXTURE_2D,
+            colorTex.id,
+            0
+        );
+        gl.drawBuffers(this.getColorAttachments(gl));
+    }
+    getColorBuffer(n: Int32) {
+        return this.colorBuffers[n] || null;
+    }
+    getDepthBuffer() {
+        return this.depthBuffer;
+    }
+    getCubeBuffer() {
+        return this.cubeBuffer;
+    }
+    use() {
+        const gl = window.gl;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboId);
+
+        let clearMask: number = gl.COLOR_BUFFER_BIT;
+        if (this.depthOnly) {
+            clearMask = gl.DEPTH_BUFFER_BIT;
+        } else if (this.depthBuffer) {
+            clearMask |= gl.DEPTH_BUFFER_BIT;
+        }
+
+        if (!this.readOnly) gl.clear(clearMask);
+        gl.viewport(0, 0, this.width as number, this.height!);
+    }
+
+    useFbo() {
+        const gl = window.gl;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboId);
+    }
+
+    useCube(i: Int32, mip: Int32) {
+        const gl = window.gl;
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,
+            gl.COLOR_ATTACHMENT0,
+            gl.TEXTURE_CUBE_MAP_POSITIVE_X + i,
+            this.cubeBuffer!.id,
+            mip
+        );
+        if (!this.readOnly) gl.clear(gl.COLOR_BUFFER_BIT);
+        let mipWidth = this.width as number;
+        let mipHeight = this.height!;
+        if (mip > 0) {
+            mipWidth = (this.width as number) * Math.pow(0.5, mip);
+            mipHeight = this.height! * Math.pow(0.5, mip);
+        }
+        gl.viewport(0, 0, mipWidth, mipHeight);
+    }
+
+    private getColorAttachments(gl: any) {
+        return Array.from(Array(this.colorBuffers.length), (_, i) => {
+            return gl[getColorAttachment(i)];
+        });
+    }
 }
